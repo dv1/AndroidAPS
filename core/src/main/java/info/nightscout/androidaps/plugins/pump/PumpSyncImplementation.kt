@@ -37,7 +37,15 @@ class PumpSyncImplementation @Inject constructor(
 
     private val disposable = CompositeDisposable()
 
-    override fun connectNewPump() {
+    override fun connectNewPump(endRunning: Boolean) {
+        if (endRunning) {
+            expectedPumpState().temporaryBasal?.let {
+                syncStopTemporaryBasalWithPumpId(dateUtil.now(), dateUtil.now(), PumpType.fromDbPumpType(it.pumpType), it.pumpSerial)
+            }
+            expectedPumpState().extendedBolus?.let {
+                syncStopExtendedBolusWithPumpId(dateUtil.now(), dateUtil.now(), PumpType.fromDbPumpType(it.pumpType), it.pumpSerial)
+            }
+        }
         sp.remove(R.string.key_active_pump_type)
         sp.remove(R.string.key_active_pump_serial_number)
         sp.remove(R.string.key_active_pump_change_timestamp)
@@ -77,7 +85,7 @@ class PumpSyncImplementation @Inject constructor(
     }
 
     override fun expectedPumpState(): PumpSync.PumpState {
-        val bolus = repository.getLastBolusRecordWrapped().blockingGet();
+        val bolus = repository.getLastBolusRecordWrapped().blockingGet()
         val temporaryBasal = repository.getTemporaryBasalActiveAt(dateUtil.now()).blockingGet()
         val extendedBolus = repository.getExtendedBolusActiveAt(dateUtil.now()).blockingGet()
 
@@ -91,7 +99,9 @@ class PumpSyncImplementation @Inject constructor(
                     rate = temporaryBasal.value.rate,
                     isAbsolute = temporaryBasal.value.isAbsolute,
                     type = PumpSync.TemporaryBasalType.fromDbType(temporaryBasal.value.type),
-                    pumpId = temporaryBasal.value.interfaceIDs.pumpId
+                    pumpType = temporaryBasal.value.interfaceIDs.pumpType ?: InterfaceIDs.PumpType.USER,
+                    pumpSerial = temporaryBasal.value.interfaceIDs.pumpSerial ?: "",
+                    pumpId = temporaryBasal.value.interfaceIDs.pumpId,
                 )
             else null,
             extendedBolus =
@@ -100,7 +110,9 @@ class PumpSyncImplementation @Inject constructor(
                     timestamp = extendedBolus.value.timestamp,
                     duration = extendedBolus.value.duration,
                     amount = extendedBolus.value.amount,
-                    rate = extendedBolus.value.rate
+                    rate = extendedBolus.value.rate,
+                    pumpType = extendedBolus.value.interfaceIDs.pumpType ?: InterfaceIDs.PumpType.USER,
+                    pumpSerial = extendedBolus.value.interfaceIDs.pumpSerial ?: ""
                 )
             else null,
             bolus =
@@ -190,7 +202,8 @@ class PumpSyncImplementation @Inject constructor(
             interfaceIDs_backing = InterfaceIDs(
                 pumpId = pumpId,
                 pumpType = pumpType.toDbPumpType(),
-                pumpSerial = pumpSerial)
+                pumpSerial = pumpSerial
+            )
         )
         repository.runTransactionForResult(InsertIfNewByTimestampCarbsTransaction(carbs))
             .doOnError { aapsLogger.error(LTag.DATABASE, "Error while saving Carbs", it) }
@@ -215,7 +228,8 @@ class PumpSyncImplementation @Inject constructor(
             interfaceIDs_backing = InterfaceIDs(
                 pumpId = pumpId,
                 pumpType = pumpType.toDbPumpType(),
-                pumpSerial = pumpSerial)
+                pumpSerial = pumpSerial
+            )
         )
         uel.log(UserEntry.Action.CAREPORTAL, pumpType.source, note, ValueWithUnit.Timestamp(timestamp), ValueWithUnit.TherapyEventType(type.toDBbEventType()))
         repository.runTransactionForResult(InsertIfNewByTimestampTherapyEventTransaction(therapyEvent))

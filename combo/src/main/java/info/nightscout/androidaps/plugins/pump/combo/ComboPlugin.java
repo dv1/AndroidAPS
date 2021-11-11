@@ -422,7 +422,7 @@ public class ComboPlugin extends PumpPluginBase implements Pump, Constraints {
             String lastKnownSN = serialNumber();
             if (!lastKnownSN.equals(fakeSerialNumber()) && !lastKnownSN.equals(macAddress)) {
                 getAapsLogger().info(LTag.PUMP, "Pump serial number changed " + lastKnownSN + " -> " + macAddress);
-                pumpSync.connectNewPump();
+                pumpSync.connectNewPump(true);
             }
             sp.putString(R.string.combo_pump_serial, macAddress);
         }

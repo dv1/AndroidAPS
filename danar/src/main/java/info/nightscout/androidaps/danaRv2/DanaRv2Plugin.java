@@ -263,7 +263,9 @@ public class DanaRv2Plugin extends AbstractDanaRPlugin {
                     }
                 }
             }
-            temporaryBasalStorage.add(new PumpSync.PumpState.TemporaryBasal(dateUtil.now(), T.Companion.mins(durationInMinutes).msecs(), percentRate, false, tbrType, 0L, 0L));
+            temporaryBasalStorage.add(new PumpSync.PumpState.TemporaryBasal(dateUtil.now(),
+                    T.Companion.mins(durationInMinutes).msecs(), percentRate, false, tbrType, 0L,
+                    danaPump.pumpType().toDbPumpType(), danaPump.getSerialNumber(), 0L));
             // Convert duration from minutes to hours
             aapsLogger.debug(LTag.PUMP, "setTempBasalAbsolute: Setting temp basal " + percentRate + "% for " + durationInMinutes + " minutes (doLowTemp || doHighTemp)");
             if (percentRate == 0 && durationInMinutes > 30) {
@@ -302,7 +304,7 @@ public class DanaRv2Plugin extends AbstractDanaRPlugin {
             aapsLogger.debug(LTag.PUMP, "setTempBasalPercent: Correct value already set");
             return result;
         }
-        temporaryBasalStorage.add(new PumpSync.PumpState.TemporaryBasal(dateUtil.now(), T.Companion.mins(durationInMinutes).msecs(), percent, false, tbrType, 0L, 0L));
+        temporaryBasalStorage.add(new PumpSync.PumpState.TemporaryBasal(dateUtil.now(), T.Companion.mins(durationInMinutes).msecs(), percent, false, tbrType, 0L, danaPump.pumpType().toDbPumpType(), danaPump.getSerialNumber(),0L));
         boolean connectionOK;
         if (durationInMinutes == 15 || durationInMinutes == 30) {
             connectionOK = sExecutionService.tempBasalShortDuration(percent, durationInMinutes);

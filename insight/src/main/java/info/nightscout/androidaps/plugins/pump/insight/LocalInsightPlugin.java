@@ -31,6 +31,7 @@ import javax.inject.Singleton;
 
 import dagger.android.HasAndroidInjector;
 import info.nightscout.androidaps.data.DetailedBolusInfo;
+import info.nightscout.androidaps.database.embedments.InterfaceIDs;
 import info.nightscout.androidaps.interfaces.Profile;
 import info.nightscout.androidaps.data.PumpEnactResult;
 import info.nightscout.androidaps.events.EventInitializationChanged;
@@ -1201,6 +1202,8 @@ public class LocalInsightPlugin extends PumpPluginBase implements Pump, Constrai
                     false,
                     PumpSync.TemporaryBasalType.NORMAL,
                     pumpID.getEventID(),
+                    InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT,
+                    serial,
                     pumpID.getEventID());
             temporaryBasals.add(temporaryBasal);
         }
@@ -1350,6 +1353,8 @@ public class LocalInsightPlugin extends PumpPluginBase implements Pump, Constrai
                 false,
                 PumpSync.TemporaryBasalType.NORMAL,
                 event.getEventPosition(),
+                InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT,
+                serial,
                 event.getEventPosition()));
     }
 
@@ -1369,6 +1374,8 @@ public class LocalInsightPlugin extends PumpPluginBase implements Pump, Constrai
                 false,
                 PumpSync.TemporaryBasalType.NORMAL,
                 event.getEventPosition(),
+                InterfaceIDs.PumpType.ACCU_CHEK_INSIGHT,
+                serial,
                 event.getEventPosition()));
     }
 

@@ -1,6 +1,7 @@
 package info.nightscout.androidaps.interfaces
 
 import info.nightscout.androidaps.data.DetailedBolusInfo
+import info.nightscout.androidaps.database.embedments.InterfaceIDs
 import info.nightscout.androidaps.database.entities.TemporaryBasal
 import info.nightscout.androidaps.plugins.pump.common.defs.PumpType
 
@@ -28,7 +29,7 @@ interface PumpSync {
      *  Call this function when new pump is paired to accept data from new pump
      *  to prevent overlapping pump histories
      */
-    fun connectNewPump()
+    fun connectNewPump(endRunning: Boolean = true)
 
     /*
      *   GENERAL STATUS
@@ -55,8 +56,19 @@ interface PumpSync {
      */
     data class PumpState(val temporaryBasal: TemporaryBasal?, val extendedBolus: ExtendedBolus?, val bolus: Bolus?, val profile: Profile?) {
 
-        data class TemporaryBasal(val timestamp: Long, val duration: Long, val rate: Double, val isAbsolute: Boolean, val type: TemporaryBasalType, val id: Long, val pumpId: Long?)
-        data class ExtendedBolus(val timestamp: Long, val duration: Long, val amount: Double, val rate: Double)
+        data class TemporaryBasal(
+            val timestamp: Long,
+            val duration: Long,
+            val rate: Double,
+            val isAbsolute: Boolean,
+            val type: TemporaryBasalType,
+            val id: Long,
+            val pumpType: InterfaceIDs.PumpType,
+            val pumpSerial: String,
+            val pumpId: Long?
+        )
+
+        data class ExtendedBolus(val timestamp: Long, val duration: Long, val amount: Double, val rate: Double, val pumpType: InterfaceIDs.PumpType, val pumpSerial: String)
         data class Bolus(val timestamp: Long, val amount: Double)
     }
 
@@ -329,7 +341,17 @@ interface PumpSync {
      * @param pumpSerial    pump serial number
      * @return true if record is successfully updated
      **/
-    fun syncTemporaryBasalWithTempId(timestamp: Long, rate: Double, duration: Long, isAbsolute: Boolean, temporaryId: Long, type: TemporaryBasalType?, pumpId: Long?, pumpType: PumpType, pumpSerial: String): Boolean
+    fun syncTemporaryBasalWithTempId(
+        timestamp: Long,
+        rate: Double,
+        duration: Long,
+        isAbsolute: Boolean,
+        temporaryId: Long,
+        type: TemporaryBasalType?,
+        pumpId: Long?,
+        pumpType: PumpType,
+        pumpSerial: String
+    ): Boolean
 
     /**
      * Invalidate of temporary basals that failed to start
