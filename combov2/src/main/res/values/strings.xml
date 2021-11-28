@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="combov2_plugin_name">Accu-Chek Combo (new plugin)</string>
+    <string name="combov2_plugin_shortname" translatable="false">COMBOV2</string>
+    <string name="combov2_plugin_description">Pump integration for Accu-Chek Combo pumps, successor to Ruffy (EXPERIMENTAL)</string>
+    <string name="combov2_could_not_connect">Could not connect to the pump</string>
+    <string name="combov2_not_paired">Not paired to a pump</string>
+    <string name="combov2_pump_terminated_connection">Pump terminated connection</string>
+    <string name="combov2_warning">Combo warning</string>
+    <string name="combov2_error">Combo error</string>
+    <string name="combov2_warning_4">Call hotline for update</string>
+    <string name="combov2_warning_10">Bluetooth fault; redo pairing</string>
+    <string name="combov2_error_1">Reservoir empty</string>
+    <string name="combov2_error_2">Battery empty</string>
+    <string name="combov2_error_4">Occlusion</string>
+    <string name="combov2_error_5">End of backup pump operation</string>
+    <string name="combov2_error_6">Mechanical error</string>
+    <string name="combov2_error_7">Electronic error</string>
+    <string name="combov2_error_8">Power interrupt</string>
+    <string name="combov2_error_9">End of loan pump operation</string>
+    <string name="combov2_error_10">Reservoir error</string>
+    <string name="combov2_error_11">Infusion set not primed</string>
+    <string name="combov2_extended_bolus_not_supported">Extended bolus is not supported</string>
+    <string name="combov2_title">Accu-Check Combo</string>
+    <string name="combov2_pair_with_pump">Pair with pump</string>
+    <string name="combov2_unpair_pump">Unpair pump</string>
+    <string name="combov2_driver_state_label">Driver state</string>
+    <string name="combov2_current_activity_label">Current activity</string>
+    <string name="bluetooth_address">Bluetooth address</string>
+    <string name="key_combov2_settings" translatable="false">combov2_settings</string>
+    <string name="key_combov2_pair_with_pump" translatable="false">combov2_pair_with_pump</string>
+    <string name="key_combov2_unpair_pump" translatable="false">combov2_unpair_pump</string>
+    <string name="combov2_start_pairing">Start pairing</string>
+    <string name="combov2_pairing_in_progress">Pairing in progress</string>
+    <string name="combov2_pairing_start_steps">Steps to perform pairing with your Combo:\n \n 1.
+        On your pump, navigate to the Bluetooth Settings\n 2. Check if a device is already shown
+        as paired; if so, go to "Delete device" screen to delete/unpair that device\n 3. Go to the
+        "Add device" screen, and initiate pairing\n 4. Click on the Start pairingbutton below</string>
+    <string name="combov2_steps_if_no_connection_during_pairing">If no connection is established
+        after more than ~5 minutes:\n \n 1. Press Back or the "Cancel Pairing" button\n 2. Cancel
+        the pairing on the pump (press both UP and MENU to cancel pairing)\n 3. Try to pair
+        again</string>
+    <string name="combov2_pin_entry_hint">0123456789</string>
+    <string name="combov2_enter_pin">Enter PIN</string>
+    <string name="combov2_cancel_pairing">Cancel pairing</string>
+    <string name="combov2_pin_hint">10-digit PIN</string>
+    <string name="combov2_pairing_finished_successfully">Pairing finished successfully</string>
+    <string name="combov2_pairing_aborted">Pairing aborted</string>
+    <string name="combov2_scanning_for_pump">Scanning for pump</string>
+    <string name="combov2_establishing_bt_connection">Establishing Bluetooth connection (attempt %1$d of %2$d)</string>
+    <string name="combov2_pairing_performing_handshake">Performing handshake with pump</string>
+    <string name="combov2_pairing_pump_requests_pin">Pump requests 10-digit PIN</string>
+    <string name="combov2_pairing_finishing">Finishing pairing</string>
+    <string name="combov2_no_connection_for_n_mins">No connection for %1$d minutes</string>
+    <string name="combov2_less_than_one_minute_ago">Less than 1 minute ago</string>
+    <string name="combov2_setting_current_pump_time">Setting current pump time</string>
+    <string name="combov2_setting_current_pump_date">Setting current pump date</string>
+    <string name="combov2_not_initialized">Not initialized</string>
+    <string name="combov2_checking_pump">Checking pump</string>
+    <string name="combov2_ready">Ready</string>
+    <string name="combov2_suspended">Suspended</string>
+    <string name="combov2_executing_command">Executing command</string>
+    <string name="combov2_pairing_pin_failure">PIN did not work. Check if there was a typo. If this
+        keeps happening, cancel and retry pairing.</string>
+    <string name="key_combov2_discovery_duration" translatable="false">combov2_discovery_duration</string>
+    <string name="combov2_discovery_duration">Discovery duration (in seconds)</string>
+    <string name="key_combov2_verbose_logging" translatable="false">combov2_verbose_logging</string>
+    <string name="combov2_verbose_logging">Enable verbose Combo logging</string>
+    <string name="key_combov2_unpair_unknown_combos" translatable="false">combov2_unpair_unknown_combos</string>
+    <string name="combov2_unpair_unknown_combos">Unpair unknown Combo
+        pumps</string>
+    <string name="combov2_accessing_basal_profile">Accessing basal profile; %1$d factor(s)
+        accessed</string>
+    <string name="combov2_delivering_bolus">Delivering bolus (%1$.3f of %2$.3f U delivered)</string>
+    <string name="combov2_cannot_deliver_pump_suspended">Cannot deliver treatment - pump is suspended</string>
+    <string name="combov2_insufficient_insulin_in_reservoir">Insufficient insulin in reservoir</string>
+    <string name="combov2_bolus_successfuly_delivered">Bolus successfully delivered</string>
+    <string name="combov2_bolus_cancelled">Bolus cancelled</string>
+    <string name="combov2_bolus_delivery_failed">Bolus delivery failed. It appears no bolus was delivered. To be sure, please check the pump to avoid a double bolus and then bolus again. To guard against bugs, boluses are not automatically retried.</string>
+    <string name="combov2_cannot_access_pump_data">Cannot access pump data; the pump must be paired again</string>
+    <string name="combov2_unaccounted_bolus_detected">Unaccounted bolus deliveries detected. Cancelling bolus for safety reasons.</string>
+    <string name="combov2_unrecognized_alert">Unrecognized Combo alert</string>
+    <string name="combov2_combo_alert">Combo alert</string>
+    <string name="combov2_last_bolus">%1$.1f %2 (%3)</string>
+    <string name="combov2_load_tdds_cancelled">Loading TDDs cancelled</string>
+    <string name="combov2_retrieving_tdds_failed">Retrieving TDDs failed</string>
+</resources>
