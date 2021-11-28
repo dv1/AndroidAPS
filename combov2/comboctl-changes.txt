@@ -1,0 +1,8 @@
+The code in comboctl/ is ComboCtl minus the jvmMain/ code, which contains code for the Linux platform.
+This includes C++ glue code to the BlueZ stack. Since none of this is useful to AndroidAPS, it is better
+left out, especially since it consists of almost 9000 lines of code. When updating ComboCtl, it is
+important to keep this in mind.
+
+Differences between the copy in comboctl/ and the original ComboCtl code must be kept as little as
+possible, and preferably be transferred to the main ComboCtl project. This helps keep the comboctl/
+copy and the main project in sync.
