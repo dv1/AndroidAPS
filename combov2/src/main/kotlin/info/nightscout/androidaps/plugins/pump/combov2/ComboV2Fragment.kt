@@ -9,6 +9,7 @@ import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.android.support.DaggerFragment
+import info.nightscout.androidaps.interfaces.CommandQueue
 import info.nightscout.androidaps.plugins.pump.combov2.databinding.Combov2FragmentBinding
 import info.nightscout.androidaps.utils.resources.ResourceHelper
 import info.nightscout.comboctl.base.NullDisplayFrame
@@ -26,6 +27,7 @@ import kotlin.math.max
 class ComboV2Fragment : DaggerFragment() {
     @Inject lateinit var combov2Plugin: ComboV2Plugin
     @Inject lateinit var rh: ResourceHelper
+    @Inject lateinit var commandQueue: CommandQueue
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -34,6 +36,11 @@ class ComboV2Fragment : DaggerFragment() {
         val binding: Combov2FragmentBinding = DataBindingUtil.inflate(
             inflater, R.layout.combov2_fragment, container, false)
         val view = binding.root
+
+        binding.combov2RefreshButton.setOnClickListener {
+            binding.combov2RefreshButton.isEnabled = false
+            commandQueue.readStatus(rh.gs(R.string.user_request), null)
+        }
 
         lifecycleScope.launch {
             // Start all of these flows with repeatOnLifecycle()
@@ -61,6 +68,13 @@ class ComboV2Fragment : DaggerFragment() {
                             ComboV2Plugin.DriverState.EXECUTING_COMMAND -> rh.gs(R.string.combov2_executing_command)
                         }
                         binding.combov2DriverState.text = text
+
+                        binding.combov2RefreshButton.isEnabled = when (connectionState) {
+                            ComboV2Plugin.DriverState.DISCONNECTED,
+                            ComboV2Plugin.DriverState.READY,
+                            ComboV2Plugin.DriverState.SUSPENDED -> true
+                            else -> false
+                        }
                     }
                     .launchIn(this)
 
