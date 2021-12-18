@@ -1,6 +1,8 @@
 package info.nightscout.androidaps.plugins.pump.combov2
 
 import android.content.Context
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import dagger.android.HasAndroidInjector
@@ -74,6 +76,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -247,6 +250,24 @@ class ComboV2Plugin @Inject constructor (
                 })
             }
             false
+        }
+
+        // Setup coroutine to enable/disable the pair and unpair
+        // preferences depending on the pairing state.
+        preferenceFragment.run {
+            lifecycleScope.launch {
+                lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    val pairPref: Preference? = findPreference(rh.gs(R.string.key_combov2_pair_with_pump))
+                    val unpairPref: Preference? = findPreference(rh.gs(R.string.key_combov2_unpair_pump))
+
+                    pairedStateUIFlow
+                        .onEach { isPaired ->
+                            pairPref?.isEnabled = !isPaired
+                            unpairPref?.isEnabled = isPaired
+                        }
+                        .launchIn(this)
+                }
+            }
         }
     }
 
