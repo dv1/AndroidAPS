@@ -24,7 +24,6 @@ import info.nightscout.androidaps.plugins.general.overview.events.EventDismissNo
 import info.nightscout.androidaps.plugins.general.overview.events.EventNewNotification
 import info.nightscout.androidaps.plugins.general.overview.events.EventOverviewBolusProgress
 import info.nightscout.androidaps.plugins.general.overview.notifications.Notification
-import info.nightscout.androidaps.plugins.pump.combov2.stateStore.SPPumpStateStore
 import info.nightscout.androidaps.plugins.pump.common.defs.PumpType
 import info.nightscout.androidaps.utils.DateUtil
 import info.nightscout.androidaps.utils.ToastUtils
@@ -499,9 +498,11 @@ class ComboV2Plugin @Inject constructor (
         disconnectInternal(forceDisconnect = false)
     }
 
-    // TODO: Check if the disconnect really needs to be forced.
-    // What are the semantics of stopConnecting()? Is the driver
-    // supposed to stop a connection attempt immediately?
+    // This is called when (a) the AAPS watchdog is about to toggle
+    // Bluetooth (if permission is given by the user) and (b) when
+    // the command queue is being emptied. In both cases, the
+    // connection attempt must be stopped immediately, which is why
+    // forceDisconnect is set to true.
     override fun stopConnecting() = disconnectInternal(forceDisconnect = true)
 
     // Marked as synchronized since this may get called by a finishing
@@ -756,9 +757,10 @@ class ComboV2Plugin @Inject constructor (
                     }
 
                     // Set up initial bolus progress along with details that are invariant.
-                    // TODO: Why is t in a companion object?
-                    // Why can't an instance of EventOverviewBolusProgress
-                    // with its own "t" be passed to the rxBus?
+                    // FIXME: EventOverviewBolusProgress is a singleton purely for
+                    // historical reasons and could be updated to be a regular
+                    // class. So far, this hasn't been done, so we must use it
+                    // like a singleton, at least for me.
                     EventOverviewBolusProgress.t = EventOverviewBolusProgress.Treatment(
                         insulin = 0.0,
                         carbs = 0,
@@ -1156,10 +1158,12 @@ class ComboV2Plugin @Inject constructor (
                     newPINChannel.receive()
                 } ?: throw IllegalStateException("Attempting to access uninitialized pump manager")
 
-                // TODO: Is this necessary?
-                pumpSync.connectNewPump()
-
                 mutablePairedStateUIFlow.value = true
+
+                // Notify AndroidAPS that this is a new pump and that
+                // the history that is associated with any previously
+                // paired pump is to be discarded.
+                pumpSync.connectNewPump()
             } finally {
                 pairingJob = null
                 pairingPINChannel?.close()

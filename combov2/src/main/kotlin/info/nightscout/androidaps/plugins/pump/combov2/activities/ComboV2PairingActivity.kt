@@ -105,7 +105,6 @@ class ComboV2PairingActivity : NoSplashAppCompatActivity() {
             runBlocking {
                 val PIN = PairingPIN(pinString.map { it - '0' }.toIntArray())
                 combov2Plugin.providePairingPIN(PIN)
-                // pairingPINChannel.send(PairingPIN(pinString.map { it - '0' }.toIntArray()))
             }
         }
 
