@@ -162,6 +162,10 @@ android {
         }
     }
 
+    buildFeatures {
+        dataBinding true
+    }
+
     useLibrary "org.apache.http.legacy"
 }
 
