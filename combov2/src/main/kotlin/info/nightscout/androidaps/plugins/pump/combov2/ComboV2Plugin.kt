@@ -744,7 +744,7 @@ class ComboV2Plugin @Inject constructor (
         if (driverStateFlow.value == DriverState.SUSPENDED)
             return createFailurePumpEnactResult(R.string.combov2_cannot_deliver_pump_suspended)
 
-        if ((pumpStatus!!.availableUnitsInReservoir.cctlBasalToIU() - 0.5) < detailedBolusInfo.insulin)
+        if ((pumpStatus!!.availableUnitsInReservoir.toDouble() - 0.5) < detailedBolusInfo.insulin)
             return createFailurePumpEnactResult(R.string.combov2_insufficient_insulin_in_reservoir)
 
         val requestedBolusAmount = (detailedBolusInfo.insulin * 10).toInt()
