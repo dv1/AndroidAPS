@@ -40,7 +40,7 @@ def generateGitRemote = { ->
     try {
         def stdout = new ByteArrayOutputStream()
         exec {
-            commandLine 'git', 'remote', 'get-url', 'origin'
+            commandLine 'git', 'remote', 'get-url', 'dv1'
             standardOutput = stdout
         }
         String commitObject = stdout.toString().trim()
