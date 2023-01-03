@@ -30,6 +30,7 @@ import info.nightscout.plugins.constraints.objectives.ObjectivesPlugin
 import info.nightscout.plugins.constraints.safety.SafetyPlugin
 import info.nightscout.plugins.constraints.signatureVerifier.SignatureVerifierPlugin
 import info.nightscout.plugins.general.actions.ActionsPlugin
+import info.nightscout.plugins.general.asteroidOS.AsteroidOSPlugin
 import info.nightscout.plugins.general.autotune.AutotunePlugin
 import info.nightscout.plugins.general.food.FoodPlugin
 import info.nightscout.plugins.general.overview.OverviewPlugin
@@ -454,6 +455,12 @@ abstract class PluginsListModule {
     @IntoMap
     @IntKey(610)
     abstract fun bindAvgSmoothingPlugin(plugin: AvgSmoothingPlugin): PluginBase
+
+    @Binds
+    @AllConfigs
+    @IntoMap
+    @IntKey(615)
+    abstract fun bindAsteroidOSPlugin(plugin: AsteroidOSPlugin): PluginBase
 
     @Qualifier
     annotation class AllConfigs

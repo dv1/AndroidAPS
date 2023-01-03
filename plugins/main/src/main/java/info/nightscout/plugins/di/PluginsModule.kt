@@ -21,6 +21,7 @@ import info.nightscout.plugins.iob.iobCobCalculator.data.AutosensDataObject
         SkinsUiModule::class,
         ActionsModule::class,
         WearModule::class,
+        AsteroidOSModule::class,
         OverviewModule::class
     ]
 )

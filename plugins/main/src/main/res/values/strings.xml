@@ -327,6 +327,12 @@
     <string name="send_logfiles">Send today\'s log files to developers along with this time. Unexpected situation.</string>
     <string name="iob_cob_calculator" translatable="false">IobCobCalculator</string>
 
+    <!--    AsteroidOS-->
+    <string name="asteroidos_name" translatable="false">AsteroidOS</string>
+    <string name="asteroidos_shortname" translatable="false">ASTEROIDOS</string>
+    <string name="description_asteroidos">Monitor AAPS using your AsteroidOS watch. Requires having the AsteroidOS sync app installed.</string>
+    <string name="asteroidos_send_data_now">Send current BG data now</string>
+
     <!--    Wear-->
     <string name="wear_shortname">WEAR</string>
     <string name="description_wear">Monitor and control AAPS using your WearOS watch.</string>

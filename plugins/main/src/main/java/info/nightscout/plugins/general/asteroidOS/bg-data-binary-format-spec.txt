@@ -1,0 +1,174 @@
+Prerequisites
+-------------
+
+This is version 1 of this message format spec.
+
+All values are encoded in little-endian order.
+
+The following values can be encoded:
+
+* INT8 / INT16 / INT64 : 8/16/64 bit signed integers, using 2-complement for negative values.
+  32-bit ones are not currently being used. Also, negative values are currently not present
+  (but might in the future).
+* FLOAT32 : 32 bit IEEE 745 floating point.
+
+
+Format
+------
+
+This section describes the message format structure by listing the included values, in order
+of appearance in the dataset. Additional comments to describe the values in detail are
+prepended to said values and prefixed with a "#".
+
+
+INT8     format version number
+
+# Flags.
+#
+# Some of these specify whether certain parts in the message are present. If these bits are not set,
+# then those parts are not present. The associated values on the watchface then must not be modified.
+#
+# However, if bit #4 is set, then all the other bits are ignored. Bit #4 overrides all. Also, if this
+# bit is set, then no further data beyond this flags byte is to be expected or used.
+#
+# The bits in detail:
+#   bit 0 specifies the glucose unit. If this is set, the unit is mg/dL. Otherwise, it is mmol/L.
+#   bit 1 is set if the BG value in the BG status block (see further below) is valid. If it is set,
+#         then that BG value is considered valid, otherwise invalid. An invalid BG value is still
+#         to be shown on the watchface, but with its value struck through.
+#   bit 2 is set if the BG status block is present. If this is set, the block is present.
+#         If this bit is not set, then the block is not present, and parsers need to assume that
+#         the bytes that normally would be part of that block are not there.
+#   bit 3 is set if the "last loop run timestamp" (see further below). If this is set,
+#         it is present, otherwise it is not present.
+#   bit 4 indicates that this message is actually a "clear watchface" command. This means that
+#         all quantities and states shown on the watchface must be cleared and/or reset to their
+#         watchface specific defaults. This effectively resets the watchface states back to their
+#         initial values. It is used for when all currently shown quantities are to be considered
+#         stale. This can happen when the BG data source was restarted for example.
+#         Also, if this bit is set, no further valid data follows the flags byte. If there is data
+#         beyond the flags byte when this bit is set, that extra data is to be ignored.
+#
+INT8     flags
+
+
+# Basal rate block.
+# The rates are all set to 0 if no basal rate is currently known.
+# The TBR percentage is set to 100 if no TBR is active.
+
+# The "base basal rate" is the current basal rate without any active TBR factored in.
+FLOAT32  base basal rate
+
+# The "current basal rate" is the current basal rate _with_ any active TBR factored in.
+FLOAT32  current basal rate
+
+INT16    TBR percentage
+
+
+# BG status block. This block is not present if the corresponding bit in the flags byte is not set.
+# If the block is not present, then the watchface must retain any BG status values it already has.
+# For example, if a previous message contained a BG value of 124, and the new message contains no
+# BG status block, then that 124 BG value must be retained.
+
+# BG values are always floating-point. But if the unit is mg/dL, they do not have fractional parts.
+FLOAT32  BG value
+
+# Fractional parts of BG delta values are treated just like those of BG values, except when the
+# BG delta is between 0 and 1 - watchfaces can then show the first 1 fractional digit in the delta
+# (it should be rounded though).
+#
+# If there was no valid delta value available, then the BG delta value is set to NaN (not a number).
+#
+FLOAT32  BG delta
+
+INT64    UTC timestamp in seconds from when this BG status was taken
+
+# The following trend arrow values can be present:
+#   0: no arrow
+#   1: ↑↑↑ triple up
+#   2: ↑↑ double up
+#   3: ↑ single up
+#   4: ↗ forty-five up
+#   5: → flat
+#   6: ↘ forty-five down
+#   7: ↓ single down
+#   8: ↓↓ double down
+#   9: ↓↓↓ triple down
+#
+INT8     trend arrow
+
+
+# BG time series block.
+#
+# This encodes the latest N BG values that are used for drawing BG time series graphs.
+# Both the BG values and the timestamps are store as time series data points with 2 values
+# each. These 2 values encode the timestamp and BG value of the associated BG value from
+# the source graph, respectively.
+#
+# Both values are normalized to the 0-32767 range to save space in this binary dataset,
+# where 0 is the minimum and 32767 the maximum for BG values, while for timestamps, 0 is
+# the oldest, 32767 the newest timestamp. 32767 corresponds to "now".
+#
+# It is possible that the oldest timestamp in a BG time series is not 0, but
+# some considerably higher value. This happens when there is currently not much BG data
+# available (for example because the BG data source only just got activated).
+#
+# If no BG time series data is available, then only the "num BG time time series data points"
+# is present in the dataset (and its value is set to 0).
+#
+INT16    num BG time time series data points
+for each data point
+	INT16    timestamp (normalized to the 0-32767 range)
+	INT16    BG value (normalized to the 0-32767 range)
+
+
+# Basal time series block.
+#
+# This encodes the latest N basal values that are used for drawing basal time series graphs.
+# Each data point contains a timestamp and a level. A data point specifies that at its given
+# timestamp, the basal level becomes the level that it has. The next data point in turn sets
+# a new level etc. For example, two data points:  point A (timestamp = 500, level = 1000) and
+# point B (timestamp = 750, level = 800) specify that at timestamp 500, the basal level
+# is set to 1000 until timestamp 750, at which point the level changes to 800.
+#
+# Note that the levels here are _not_ meant to be used for IOB quantities.
+# They are purely for drawing TBR graphs.
+#
+# If no basal time series data is available, then only the "num basal time series data points"
+# is present in the dataset (and its value is set to 0).
+#
+INT16    num basal time series data points
+for each data point
+	INT16    timestamp (normalized to the 0-32767 range)
+	INT16    basal level (normalized to the 0-32767 range)
+
+
+# Base basal time series block.
+#
+# This behaves similar to the regular basal time series block (see above), except that this
+# contains the _base_ basal rate data points ("base" as in "unaffected by TBRs and pump suspensions").
+# This is effectively the basal rate profile (or at least the last N factors of that profile) that
+# is programmed in the pump.
+#
+INT16    num basal time series data points
+for each data point
+	INT16    timestamp (normalized to the 0-32767 range)
+	INT16    basal level (normalized to the 0-32767 range)
+
+
+# Insulin On Board (IOB) block.
+# The numbers are set to 0 if no IOB is currently known. Unit is Insulin Unit (IU).
+FLOAT32  basal IOB
+FLOAT32  bolus IOB
+
+
+# Carbs On Board (COB) block.
+# The numbers are set to 0 if no IOB is currently known. Unit is gram (g).
+INT16    currently active carbs
+INT16    carbs that will become active in the future
+
+
+# UTC timestamp in seconds from when the last time the closed-loop was run.
+# This value is not present if the corresponding bit in the flags byte is not set.
+#
+INT64    last loop run timestamp
