@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import dagger.android.HasAndroidInjector
+import info.nightscout.core.extensions.convertedToAbsolute
 import info.nightscout.core.graph.OverviewData
 import info.nightscout.core.utils.fabric.FabricPrivacy
 import info.nightscout.database.entities.GlucoseValue
@@ -29,10 +30,13 @@ import info.nightscout.rx.events.EventLoopUpdateGui
 import info.nightscout.rx.logging.AAPSLogger
 import info.nightscout.rx.logging.LTag
 import info.nightscout.shared.interfaces.ResourceHelper
+import info.nightscout.shared.utils.T
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 // Here, we send over BG data in a binary format to AsteroidOS smartwatches.
@@ -141,9 +145,7 @@ class AsteroidOSPlugin @Inject constructor(
         val messageBytes = mutableListOf(BG_DATA_FORMAT_VERSION_NUMBER.toByte(), flags)
             .addBasalRate(bgDataContext)
             .addBGStatus(bgDataContext)
-            .addBGTimeSeries(bgDataContext)
-            .addBasalTimeSeries(bgDataContext)
-            .addBaseBasalTimeSeries(bgDataContext)
+            .addTimeSeries(bgDataContext)
             .addIOB()
             .addCOB()
             .addLastLoopRun()
@@ -262,8 +264,14 @@ class AsteroidOSPlugin @Inject constructor(
         }
     }
 
-    private fun MutableList<Byte>.addBGTimeSeries(bgDataContext: BGDataContext): MutableList<Byte> {
+    private fun MutableList<Byte>.addTimeSeries(bgDataContext: BGDataContext): MutableList<Byte> {
         val startTime = bgDataContext.currentTime - BG_TIME_SERIES_TIMESPAN
+
+        fun normalizeTimestamp(timestamp: Long) =
+            ((timestamp - startTime).toDouble() * 32767.0 / BG_TIME_SERIES_TIMESPAN).roundToInt().coerceIn(0, 32767)
+
+        // Add the BG time series
+
         val sourceBGValues = iobCobCalculator.ads.getBucketedDataTableCopy()?.let { bucketedGlucoseValues ->
             bucketedGlucoseValues.filter { it.timestamp >= startTime }.sortedBy { it.timestamp }
         } ?: listOf()
@@ -284,29 +292,90 @@ class AsteroidOSPlugin @Inject constructor(
 
             sourceBGValues.forEach { glucoseValue ->
                 // Normalize the BG values to the integer 0-32767 range.
-                val normalizedTimestamp = ((glucoseValue.timestamp - startTime).toDouble() * 32767.0 / BG_TIME_SERIES_TIMESPAN).roundToInt().coerceIn(0, 32767)
-                val normalizedValue = (glucoseValue.recalculated * 32767.0 / maxBgValue).roundToInt().coerceIn(0, 65535)
+                val normalizedTimestamp = normalizeTimestamp(glucoseValue.timestamp)
+                val normalizedValue = (glucoseValue.recalculated * 32767.0 / maxBgValue).roundToInt().coerceIn(0, 32767)
 
                 addNumeric(normalizedTimestamp.toShort())
                 addNumeric(normalizedValue.toShort())
             }
         }
 
+        // Add the basal and base basal time series
+
+        var currentTimestamp = 0L
+        val timestep = T.mins(5).msecs()
+        var currentBasal: Double? = null
+        var currentBaseBasal: Double? = null
+        var minBasal = 0.0
+        var maxBasal = 0.0
+        val basalList = mutableListOf<Pair<Long, Double>>()
+        val baseBasalList = mutableListOf<Pair<Long, Double>>()
+        currentTimestamp = startTime
+        while (currentTimestamp < bgDataContext.currentTime) {
+            val profile = profileFunction.getProfile(currentTimestamp)
+            if (profile == null) {
+                currentTimestamp += timestep
+                continue
+            }
+
+            val baseBasal = profile.getBasal(currentTimestamp)
+            minBasal = min(minBasal, baseBasal)
+            maxBasal = max(maxBasal, baseBasal)
+
+            if ((currentBaseBasal == null) || (currentBaseBasal != baseBasal)) {
+                currentBaseBasal = baseBasal
+                baseBasalList.add(Pair(currentTimestamp, currentBaseBasal))
+            }
+
+            val basal = iobCobCalculator.getTempBasalIncludingConvertedExtended(currentTimestamp)
+                ?.convertedToAbsolute(currentTimestamp, profile) ?: baseBasal
+            minBasal = min(minBasal, basal)
+            maxBasal = max(maxBasal, basal)
+
+            if ((currentBasal == null) || (currentBasal != basal)) {
+                currentBasal = basal
+                basalList.add(Pair(currentTimestamp, currentBasal))
+            }
+
+            currentTimestamp += timestep
+        }
+
+        // Expand the range defined by minBasal and maxBasal to make sure the
+        // highest and lowest basals are not drawn at the top and bottom borders.
+        val basalRange = maxBasal - minBasal
+        val rangeAdjustment = basalRange * 0.1
+        minBasal -= rangeAdjustment
+        maxBasal += rangeAdjustment
+        val expandedRange = maxBasal - minBasal
+
+        fun normalizeBasal(basal: Double) =
+            (((basal - minBasal) * 32767.0) / expandedRange).roundToInt().coerceIn(0, 32767)
+
+        addNumeric(basalList.size.toShort())
+        basalList.forEach {
+            val timestamp = it.first
+            val basal = it.second
+
+            val normalizedTimestamp = normalizeTimestamp(timestamp)
+            val normalizedBasal = normalizeBasal(basal)
+
+            addNumeric(normalizedTimestamp.toShort())
+            addNumeric(normalizedBasal.toShort())
+        }
+
+        addNumeric(baseBasalList.size.toShort())
+        baseBasalList.forEach {
+            val timestamp = it.first
+            val baseBasal = it.second
+
+            val normalizedTimestamp = normalizeTimestamp(timestamp)
+            val normalizedBaseBasal = normalizeBasal(baseBasal)
+
+            addNumeric(normalizedTimestamp.toShort())
+            addNumeric(normalizedBaseBasal.toShort())
+        }
+
         return this
-    }
-
-    private fun MutableList<Byte>.addBasalTimeSeries(bgDataContext: BGDataContext): MutableList<Byte> {
-        return this.apply {
-            // TODO
-            addNumeric(0.toShort())
-        }
-    }
-
-    private fun MutableList<Byte>.addBaseBasalTimeSeries(bgDataContext: BGDataContext): MutableList<Byte> {
-        return this.apply {
-            // TODO
-            addNumeric(0.toShort())
-        }
     }
 
     private fun MutableList<Byte>.addIOB(): MutableList<Byte> {
