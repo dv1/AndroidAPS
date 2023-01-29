@@ -24,18 +24,13 @@ import info.nightscout.interfaces.utils.TrendCalculator
 import info.nightscout.plugins.R
 import info.nightscout.rx.AapsSchedulers
 import info.nightscout.rx.bus.RxBus
-import info.nightscout.rx.events.EventBucketedDataCreated
-import info.nightscout.rx.events.EventEffectiveProfileSwitchChanged
+import info.nightscout.rx.events.EventAutosensCalculationFinished
 import info.nightscout.rx.events.EventLoopUpdateGui
-import info.nightscout.rx.events.EventTempBasalChange
-import info.nightscout.rx.events.EventUpdateOverviewGraph
-import info.nightscout.rx.events.EventUpdateOverviewIobCob
 import info.nightscout.rx.logging.AAPSLogger
 import info.nightscout.rx.logging.LTag
 import info.nightscout.shared.interfaces.ResourceHelper
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.roundToInt
@@ -109,49 +104,13 @@ class AsteroidOSPlugin @Inject constructor(
         // like the IOB calculator might not be available at this time.
 
         disposable += rxBus
-            .toObservable(EventBucketedDataCreated::class.java)
-            .debounce(1L, TimeUnit.SECONDS)
-            .observeOn(aapsSchedulers.io)
-            .subscribe({ sendCurrentBGData() }, fabricPrivacy::logException)
-
-        // NOTE: This event is only emitted on the overviewBus, not the rxBus.
-        disposable += activePlugin.activeOverview.overviewBus
-            .toObservable(EventUpdateOverviewIobCob::class.java)
-            .debounce(1L, TimeUnit.SECONDS)
-            .observeOn(aapsSchedulers.io)
-            .subscribe({ sendCurrentBGData() }, fabricPrivacy::logException)
-
-        disposable += rxBus
-            // TODO: Is this the correct event for catching profile
-            // changes, particularly changes in units (mmol/L <-> mg/dL)?
-            .toObservable(EventEffectiveProfileSwitchChanged::class.java)
-            .observeOn(aapsSchedulers.io)
-            .subscribe({ sendCurrentBGData() }, fabricPrivacy::logException)
-
-        disposable += rxBus
             .toObservable(EventLoopUpdateGui::class.java)
-            .debounce(1L, TimeUnit.SECONDS)
             .observeOn(aapsSchedulers.io)
             .subscribe({ sendCurrentBGData() }, fabricPrivacy::logException)
-
         disposable += rxBus
-            .toObservable(EventTempBasalChange::class.java)
+            .toObservable(EventAutosensCalculationFinished::class.java)
             .observeOn(aapsSchedulers.io)
             .subscribe({ sendCurrentBGData() }, fabricPrivacy::logException)
-
-        // TODO: Is EventUpdateOverviewGraph the correct event? We want an
-        // event that is emitted at AAPS startup right after all the infos
-        // (current BG, basal rate, BG deltas ...) are loaded and available,
-        // and not again after that.
-        disposable += rxBus
-            .toObservable(EventUpdateOverviewGraph::class.java)
-            .observeOn(aapsSchedulers.io)
-            .subscribe({
-                           if (!initialFullBGDataSent) {
-                               initialFullBGDataSent = true
-                               sendCurrentBGData()
-                           }
-                       }, fabricPrivacy::logException)
     }
 
     override fun onStop() {
