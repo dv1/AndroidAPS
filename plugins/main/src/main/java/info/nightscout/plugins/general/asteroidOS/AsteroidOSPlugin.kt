@@ -338,7 +338,7 @@ class AsteroidOSPlugin @Inject constructor(
     }
 
     private fun clearWatchface() {
-        sendDataToSyncApp(byteArrayOf(FLAG_MUST_CLEAR_ALL_DATA.toByte()))
+        sendDataToSyncApp(byteArrayOf(BG_DATA_FORMAT_VERSION_NUMBER.toByte(), FLAG_MUST_CLEAR_ALL_DATA.toByte()))
     }
 
     private fun sendDataToSyncApp(messageBody: ByteArray) {
