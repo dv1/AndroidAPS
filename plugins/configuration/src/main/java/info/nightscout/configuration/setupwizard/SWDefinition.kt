@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import dagger.android.HasAndroidInjector
@@ -172,6 +173,20 @@ class SWDefinition @Inject constructor(
                      .action { androidPermission.askForPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) })
             .visibility { androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) }
             .validator { !androidPermission.permissionNotGranted(activity, Manifest.permission.ACCESS_FINE_LOCATION) }
+
+    private val screenPermissionBtConnect
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            SWScreen(injector, R.string.permission)
+                .skippable(false)
+                .add(SWInfoText(injector).label(rh.gs(R.string.need_bt_connect_permission)))
+                .add(SWBreak(injector))
+                .add(SWButton(injector)
+                         .text(R.string.askforpermission)
+                         .visibility { androidPermission.permissionNotGranted(activity, Manifest.permission.BLUETOOTH_CONNECT) }
+                         .action { androidPermission.askForPermission(activity, Manifest.permission.BLUETOOTH_CONNECT) })
+                .visibility { androidPermission.permissionNotGranted(activity, Manifest.permission.BLUETOOTH_CONNECT) }
+                .validator { !androidPermission.permissionNotGranted(activity, Manifest.permission.BLUETOOTH_CONNECT) }
+        } else null
 
     private val screenPermissionStore
         get() = SWScreen(injector, R.string.permission)
@@ -407,6 +422,7 @@ class SWDefinition @Inject constructor(
             .add(if (isRunningTest()) null else screenPermissionBattery) // cannot mock ask battery optimization
             .add(screenPermissionWindow)
             .add(screenPermissionBt)
+            .add(screenPermissionBtConnect)
             .add(screenPermissionStore)
             .add(screenMasterPassword)
             .add(screenImport)
@@ -434,6 +450,7 @@ class SWDefinition @Inject constructor(
             .add(if (isRunningTest()) null else screenPermissionBattery) // cannot mock ask battery optimization
             .add(screenPermissionWindow)
             .add(screenPermissionBt)
+            .add(screenPermissionBtConnect)
             .add(screenPermissionStore)
             .add(screenMasterPassword)
             .add(screenImport)
