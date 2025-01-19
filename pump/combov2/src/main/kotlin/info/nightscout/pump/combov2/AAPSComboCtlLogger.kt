@@ -30,7 +30,7 @@ internal class AAPSComboCtlLogger(private val aapsLogger: AAPSLogger) : ComboCtl
             // Log verbose content directly with Android's logger to not let this
             // end up in AndroidAPS log files, which otherwise would quickly become
             // very big, since verbose logging produces a lot of material.
-            LogLevel.VERBOSE -> Log.v(tag, message, throwable)
+            LogLevel.VERBOSE -> Log.v(tag, "[${Thread.currentThread().name}]: [$className.$methodName:$lineNumber]: $message", throwable)
 
             LogLevel.DEBUG   -> aapsLogger.debug(className, methodName, lineNumber, ltag, fullMessage)
             LogLevel.INFO    -> aapsLogger.info(className, methodName, lineNumber, ltag, fullMessage)
