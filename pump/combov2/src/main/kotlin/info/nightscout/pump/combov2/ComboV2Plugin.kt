@@ -67,6 +67,7 @@ import info.nightscout.comboctl.parser.BatteryState
 import info.nightscout.comboctl.parser.ReservoirState
 import info.nightscout.pump.combov2.activities.ComboV2PairingActivity
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -136,10 +137,17 @@ class ComboV2Plugin @Inject constructor(
 
     private val sequencedDispatcher = defaultSequencedDispatcher
 
+    // Utility class to keep an internal scope and its
+    // SupervisorJob grouped. It also makes replacing the
+    // coroutine with a new one easier and clearer.
+    private class PumpCoroutine(sequencedDispatcher: CoroutineDispatcher) {
+        val job = SupervisorJob()
+        val scope = CoroutineScope(sequencedDispatcher + job)
+    }
+
     // Coroutine scope and the associated job. All coroutines
     // that are started in this plugin are part of this scope.
-    private var pumpCoroutineScopeJob = SupervisorJob()
-    private var pumpCoroutineScope = CoroutineScope(sequencedDispatcher + pumpCoroutineScopeJob)
+    private var pumpCoroutine = PumpCoroutine(sequencedDispatcher)
 
     private val _pumpDescription = PumpDescription()
 
@@ -329,7 +337,7 @@ class ComboV2Plugin @Inject constructor(
         // runWithPermissionCheck(), which will keep trying to run the code block
         // until either the necessary Bluetooth permissions are granted, or the
         // coroutine is cancelled (see onStop() below).
-        pumpCoroutineScope.launch {
+        pumpCoroutine.scope.launch {
             try {
                 runWithPermissionCheck(
                     context, config, aapsLogger, androidPermission,
@@ -412,7 +420,7 @@ class ComboV2Plugin @Inject constructor(
             // finish. Otherwise, race conditions can occur, for example, when
             // a coroutine tries to access bluetoothInterface right after it
             // was torn down below.
-            pumpCoroutineScopeJob.cancelAndJoin()
+            pumpCoroutine.job.cancelAndJoin()
 
             // Normally this should not happen, but to be safe,
             // make sure any running pump instance is disconnected.
@@ -435,8 +443,7 @@ class ComboV2Plugin @Inject constructor(
         initializationChangedEventSent = false
 
         // The old job and scope were completed. We need new ones.
-        pumpCoroutineScopeJob = SupervisorJob()
-        pumpCoroutineScope = CoroutineScope(sequencedDispatcher + pumpCoroutineScopeJob)
+        pumpCoroutine = PumpCoroutine(sequencedDispatcher)
 
         super.onStop()
 
@@ -613,7 +620,7 @@ class ComboV2Plugin @Inject constructor(
             @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
             _displayFrameUIFlow.resetReplayCache()
 
-            stateAndStatusFlowsDeferred = pumpCoroutineScope.async {
+            stateAndStatusFlowsDeferred = pumpCoroutine.scope.async {
                 coroutineScope {
                     acquiredPump.stateFlow
                         .onEach { pumpState ->
@@ -683,7 +690,7 @@ class ComboV2Plugin @Inject constructor(
             disconnectRequestPending = false
             setDriverState(DriverState.Connecting)
 
-            connectionSetupJob = pumpCoroutineScope.launch {
+            connectionSetupJob = pumpCoroutine.scope.launch {
                 var forciblyDisconnectDueToError = false
 
                 try {
@@ -1059,7 +1066,7 @@ class ComboV2Plugin @Inject constructor(
             id = detailedBolusInfo.id
         )
 
-        val bolusProgressJob = pumpCoroutineScope.launch {
+        val bolusProgressJob = pumpCoroutine.scope.launch {
             acquiredPump.bolusDeliveryProgressFlow
                 .collect { progressReport ->
                     when (progressReport.stage) {
@@ -1084,7 +1091,7 @@ class ComboV2Plugin @Inject constructor(
 
         // Run the delivery in a sub-coroutine to be able
         // to cancel it via stopBolusDelivering().
-        val newBolusJob = pumpCoroutineScope.async {
+        val newBolusJob = pumpCoroutine.scope.async {
             // NOTE: Above, we take a local reference to the acquired Pump instance,
             // with a check that throws an exception in case the "pump" member is
             // null. This local reference is particularly important inside this
@@ -1656,7 +1663,7 @@ class ComboV2Plugin @Inject constructor(
         // Update the log level here in case the user changed it.
         updateComboCtlLogLevel()
 
-        pairingJob = pumpCoroutineScope.async {
+        pairingJob = pumpCoroutine.scope.async {
             try {
                 // Do the pairing attempt within runWithPermissionCheck()
                 // since pairing requires Bluetooth permissions.
@@ -1852,7 +1859,7 @@ class ComboV2Plugin @Inject constructor(
     /*** Misc private functions ***/
 
     private fun setupUiFlows(acquiredPump: ComboCtlPump) {
-        pumpUIFlowsDeferred = pumpCoroutineScope.async {
+        pumpUIFlowsDeferred = pumpCoroutine.scope.async {
             try {
                 coroutineScope {
                     acquiredPump.connectProgressFlow
@@ -1981,7 +1988,7 @@ class ComboV2Plugin @Inject constructor(
         if (pumpErrorTimeoutJob != null)
             return
 
-        pumpErrorTimeoutJob = pumpCoroutineScope.launch {
+        pumpErrorTimeoutJob = pumpCoroutine.scope.launch {
             delay(PUMP_ERROR_TIMEOUT_INTERVAL_MSECS)
             aapsLogger.info(LTag.PUMP, "Clearing pumpErrorObserved flag after timeout was reached")
             pumpErrorObserved = false
