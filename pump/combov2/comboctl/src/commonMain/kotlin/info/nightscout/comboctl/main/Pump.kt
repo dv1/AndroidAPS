@@ -33,6 +33,7 @@ import info.nightscout.comboctl.parser.MainScreenContent
 import info.nightscout.comboctl.parser.ParsedScreen
 import info.nightscout.comboctl.parser.ReservoirState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
@@ -208,16 +209,32 @@ object RTCommandProgressStage {
  * this argument to that profile avoids an unnecessary basal profile read
  * operation when connecting.
  *
- * IMPORTANT: The commands in this class are not designed to be executed
- * concurrently (the Combo does not support this), so make sure these
- * commands (for example, [setBasalProfile] and [deliverBolus]) are
- * never called concurrently by multiple threads and/or coroutines.
- * If necessary, use synchronization primitives.
+ * The [sequencedDispatcher] is the dispatcher that is used for spawning
+ * the internal coroutines that send and receive packets and for running
+ * the functionality of the public methods. By doing so, these methods
+ * are made thread safe, since they are run by this sequenced dispatcher
+ * that disallows parallelism.
+ *
+ * IMPORTANT: It is essential that that dispatcher is really a "sequenced"
+ * one. This means that it never executes more than one task at the same
+ * time. Consider using the JVM single thread executor, or the
+ * [CoroutineDispatcher.limitedParallelism] dispatcher view with its
+ * parallelism count set to 1. Otherwise, race conditions may occur.
+ *
+ * Multiple command methods like [setBasalProfile] or [setTbr] can be
+ * called concurrently, since they are designed to ensure that they never
+ * actually run concurrently. Calling [disconnect] and [unpair] while
+ * these command methods are run is also safe - such calls will cause the
+ * commands to be aborted. Calling [connect] at the same time as [unpair]
+ * and [disconnect], or calling [unpair] and [disconnect] simultaneously,
+ * causes undefined behavior, however.
  *
  * @param bluetoothDevice [BluetoothDevice] object to use for
  *   Bluetooth I/O. Must be in a disconnected state when
  *   assigned to this instance.
  * @param pumpStateStore Pump state store to use.
+ * @param sequencedDispatcher Sequenced dispatcher to use for internal IO
+ *   and for running the public methods of this class.
  * @param initialBasalProfile Basal profile to use as the initial value
  *   of [currentBasalProfile].
  * @param onEvent Callback to inform caller about events that happen
@@ -227,11 +244,12 @@ object RTCommandProgressStage {
 class Pump(
     private val bluetoothDevice: BluetoothDevice,
     private val pumpStateStore: PumpStateStore,
+    private val sequencedDispatcher: CoroutineDispatcher,
     initialBasalProfile: BasalProfile? = null,
     private val onEvent: (event: Event) -> Unit = { }
 ) {
 
-    private val pumpIO = PumpIO(pumpStateStore, bluetoothDevice, this::processDisplayFrame, this::packetReceiverExceptionThrown)
+    private val pumpIO = PumpIO(pumpStateStore, bluetoothDevice, sequencedDispatcher, this::processDisplayFrame, this::packetReceiverExceptionThrown)
 
     // Updated by updateStatusImpl(). true if the Combo
     // is currently in the stop mode. If true, commands
@@ -815,9 +833,9 @@ class Pump(
      * client from the Combo in its Bluetooth settings. There is
      * no way to do this remotely by the client.
      */
-    suspend fun unpair() {
+    suspend fun unpair() = withContext(sequencedDispatcher) {
         if (!pumpStateStore.hasPumpState(address))
-            return
+            return@withContext
 
         disconnect()
 
@@ -923,7 +941,7 @@ class Pump(
      *   the pump's datetime was found to be deviating too much from the
      *   actual current datetime, and adjusting the pump's datetime failed.
      */
-    suspend fun connect(maxNumAttempts: Int? = DEFAULT_MAX_NUM_REGULAR_CONNECT_ATTEMPTS) {
+    suspend fun connect(maxNumAttempts: Int? = DEFAULT_MAX_NUM_REGULAR_CONNECT_ATTEMPTS) = withContext(sequencedDispatcher) {
         check(stateFlow.value == State.Disconnected) { "Attempted to connect to pump in the ${stateFlow.value} state" }
         check((maxNumAttempts == null) || (maxNumAttempts > 0))
 
@@ -1002,10 +1020,10 @@ class Pump(
      *
      * This sets [statusFlow] to null and [stateFlow] to [State.Disconnected].
      */
-    suspend fun disconnect() {
+    suspend fun disconnect() = withContext(sequencedDispatcher) {
         if (stateFlow.value == State.Disconnected) {
             logger(LogLevel.DEBUG) { "Ignoring disconnect() call since pump is already disconnected" }
-            return
+            return@withContext
         }
 
         pumpIO.disconnect()
@@ -2008,7 +2026,7 @@ class Pump(
     // for pressing the UP button etc. See PumpIO for a documentation of
     // what these functions do.
 
-    suspend fun sendShortRTButtonPress(buttons: List<ApplicationLayer.RTButton>) {
+    suspend fun sendShortRTButtonPress(buttons: List<ApplicationLayer.RTButton>) = withContext(sequencedDispatcher) {
         pumpIO.switchMode(PumpIO.Mode.REMOTE_TERMINAL)
         pumpIO.sendShortRTButtonPress(buttons)
     }
@@ -2016,7 +2034,7 @@ class Pump(
     suspend fun sendShortRTButtonPress(button: ApplicationLayer.RTButton) =
         sendShortRTButtonPress(listOf(button))
 
-    suspend fun startLongRTButtonPress(buttons: List<ApplicationLayer.RTButton>, keepGoing: (suspend () -> Boolean)? = null) {
+    suspend fun startLongRTButtonPress(buttons: List<ApplicationLayer.RTButton>, keepGoing: (suspend () -> Boolean)? = null) = withContext(sequencedDispatcher) {
         pumpIO.switchMode(PumpIO.Mode.REMOTE_TERMINAL)
         pumpIO.startLongRTButtonPress(buttons, keepGoing)
     }
@@ -2024,14 +2042,17 @@ class Pump(
     suspend fun startLongRTButtonPress(button: ApplicationLayer.RTButton, keepGoing: (suspend () -> Boolean)? = null) =
         startLongRTButtonPress(listOf(button), keepGoing)
 
-    suspend fun stopLongRTButtonPress() =
+    suspend fun stopLongRTButtonPress() = withContext(sequencedDispatcher) {
         pumpIO.stopLongRTButtonPress()
+    }
 
-    suspend fun waitForLongRTButtonPressToFinish() =
+    suspend fun waitForLongRTButtonPressToFinish() = withContext(sequencedDispatcher) {
         pumpIO.waitForLongRTButtonPressToFinish()
+    }
 
-    suspend fun switchMode(mode: PumpIO.Mode) =
+    suspend fun switchMode(mode: PumpIO.Mode) = withContext(sequencedDispatcher) {
         pumpIO.switchMode(mode)
+    }
 
     /*************************************
      *** PRIVATE FUNCTIONS AND CLASSES ***
@@ -2089,7 +2110,7 @@ class Pump(
         allowExecutionWhileSuspended: Boolean = false,
         allowExecutionWhileChecking: Boolean = false,
         block: suspend CoroutineScope.() -> T
-    ): T {
+    ): T = withContext(sequencedDispatcher) {
         check(
             (stateFlow.value == State.ReadyForCommands) ||
                 (allowExecutionWhileSuspended && (stateFlow.value == State.Suspended)) ||
@@ -2251,7 +2272,7 @@ class Pump(
             if (commandSucceeded) {
                 setState(previousState)
                 // retval is non-null precisely when the command succeeded.
-                return retval!!
+                return@withContext retval!!
             } else throw CommandExecutionAttemptsFailedException()
         } catch (e: CancellationException) {
             // Command was cancelled. Revert to the previous state (since cancellation

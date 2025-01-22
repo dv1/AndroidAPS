@@ -57,6 +57,7 @@ import info.nightscout.comboctl.base.ComboException
 import info.nightscout.comboctl.base.DisplayFrame
 import info.nightscout.comboctl.base.NullDisplayFrame
 import info.nightscout.comboctl.base.PairingPIN
+import info.nightscout.comboctl.base.defaultSequencedDispatcher
 import info.nightscout.comboctl.main.BasalProfile
 import info.nightscout.comboctl.main.QuantityNotChangingException
 import info.nightscout.comboctl.main.RTCommandProgressStage
@@ -68,7 +69,6 @@ import info.nightscout.pump.combov2.activities.ComboV2PairingActivity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -134,10 +134,12 @@ class ComboV2Plugin @Inject constructor(
         aapsLogger, rh, commandQueue
     ), Pump, PluginConstraints {
 
+    private val sequencedDispatcher = defaultSequencedDispatcher
+
     // Coroutine scope and the associated job. All coroutines
     // that are started in this plugin are part of this scope.
     private var pumpCoroutineScopeJob = SupervisorJob()
-    private var pumpCoroutineScope = CoroutineScope(Dispatchers.Default + pumpCoroutineScopeJob)
+    private var pumpCoroutineScope = CoroutineScope(sequencedDispatcher + pumpCoroutineScopeJob)
 
     private val _pumpDescription = PumpDescription()
 
@@ -341,7 +343,7 @@ class ComboV2Plugin @Inject constructor(
                         rxBus.send(EventDismissNotification(Notification.BLUETOOTH_NOT_ENABLED))
 
                         aapsLogger.debug(LTag.PUMP, "Setting up pump manager")
-                        val newPumpManager = ComboCtlPumpManager(newBluetoothInterface, pumpStateStore)
+                        val newPumpManager = ComboCtlPumpManager(newBluetoothInterface, pumpStateStore, sequencedDispatcher)
                         newPumpManager.setup {
                             _pairedStateUIFlow.value = false
                             unpairing = false
@@ -434,7 +436,7 @@ class ComboV2Plugin @Inject constructor(
 
         // The old job and scope were completed. We need new ones.
         pumpCoroutineScopeJob = SupervisorJob()
-        pumpCoroutineScope = CoroutineScope(Dispatchers.Default + pumpCoroutineScopeJob)
+        pumpCoroutineScope = CoroutineScope(sequencedDispatcher + pumpCoroutineScopeJob)
 
         super.onStop()
 

@@ -1,6 +1,7 @@
 package info.nightscout.comboctl.base
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -676,13 +677,13 @@ object TransportLayer {
          *
          * To receive packets in the background from the Combo, this starts
          * an internal coroutine that runs in the [packetReceiverScope].
-         * That scope's associated dispatcher is overwritten; a different
-         * dispatcher is used instead (one that never executes tasks
-         * simultaneously, on several threads). The "packet receiver"
-         * is that coroutine. It runs a loop that keeps receiving packets.
-         * The [onPacketReceived] callback defines if the packet receiver
-         * should drop the packet or forward it through an internal channel
-         * to receive() calls.
+         * The "packet receiver" is that coroutine. It runs a loop that keeps
+         * receiving packets. The [onPacketReceived] callback defines if the
+         * packet receiver should drop the packet or forward it through an
+         * internal channel to receive() calls.
+         *
+         * [packetReceiverScope]'s associated dispatcher must be a "sequenced"
+         * dispatcher. See [defaultSequencedDispatcher] for details.
          *
          * @param packetReceiverScope [CoroutineScope] to run the packet
          *     receiver coroutine in.
@@ -694,12 +695,7 @@ object TransportLayer {
             onPacketReceived: (packet: Packet) -> ReceiverBehavior
         ) {
             check(packetReceiverJob == null) { "IO already started" }
-
-            // Override the scope's existing dispatcher with the
-            // sequencedDispatcher to ensure our IO operations never
-            // run in parallel and to prevent internal states to be
-            // accessed in parallel by multiple threads.
-            startInternal(packetReceiverScope + sequencedDispatcher, onPacketReceived)
+            startInternal(packetReceiverScope, onPacketReceived)
         }
 
         /**
@@ -798,9 +794,12 @@ object TransportLayer {
          * [start] must have been called prior to calling this function.
          *
          * This function suspends the calling coroutine until the send operation
-         * is complete, or an exception is thrown.
+         * is complete, or an exception is thrown. The [sequencedDispatcher] is used
+         * for running the actual send operation. For details about sequenced dispatchers,
+         * consult the [defaultSequencedDispatcher] documentation.
          *
          * @param packetInfo Information about the packet to generate and send.
+         * @param sequencedDispatcher Sequenced dispatcher to use for sending.
          * @throws IllegalStateException if IO is not running or if it has failed.
          * @throws PacketReceiverException if an exception was thrown inside the
          *         packet receiver prior to this call.
@@ -809,7 +808,7 @@ object TransportLayer {
          *         nonce in the pump state store failed while preparing the packet
          *         for sending.
          */
-        suspend fun send(packetInfo: OutgoingPacketInfo) {
+        suspend fun send(packetInfo: OutgoingPacketInfo, sequencedDispatcher: CoroutineDispatcher) {
             check(isIORunning()) {
                 "Attempted to send packet even though IO is not running"
             }
@@ -820,7 +819,9 @@ object TransportLayer {
                 } ?: throw Error("Packet receiver channel failed for unknown reason")
             }
 
-            sendInternal(packetInfo)
+            withContext(sequencedDispatcher) {
+                sendInternal(packetInfo)
+            }
         }
 
         /**
@@ -937,7 +938,7 @@ object TransportLayer {
             }
         }
 
-        private suspend fun sendInternal(packetInfo: OutgoingPacketInfo) = withContext(sequencedDispatcher) {
+        private suspend fun sendInternal(packetInfo: OutgoingPacketInfo) {
             // It is important to throttle the output to not overload
             // the Combo's packet ring buffer. Otherwise, old packets
             // get overwritten by new ones, and the Combo begins to

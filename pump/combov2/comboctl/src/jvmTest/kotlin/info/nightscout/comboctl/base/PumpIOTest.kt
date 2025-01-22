@@ -7,6 +7,7 @@ import info.nightscout.comboctl.base.testUtils.TestRefPacketItem
 import info.nightscout.comboctl.base.testUtils.checkTestPacketSequence
 import info.nightscout.comboctl.base.testUtils.produceTpLayerPacket
 import info.nightscout.comboctl.base.testUtils.runBlockingWithWatchdog
+import info.nightscout.comboctl.base.testUtils.testSequencedDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.UtcOffset
@@ -49,7 +50,7 @@ class PumpIOTest {
                 testIO.pumpClientCipher = invariantPumpData.pumpClientCipher
             }
 
-            pumpIO = PumpIO(testPumpStateStore, testBluetoothDevice, onNewDisplayFrame = {}, onPacketReceiverException = {})
+            pumpIO = PumpIO(testPumpStateStore, testBluetoothDevice, testSequencedDispatcher, onNewDisplayFrame = {}, onPacketReceiverException = {})
         }
 
         // Tests that a long button press is handled correctly.

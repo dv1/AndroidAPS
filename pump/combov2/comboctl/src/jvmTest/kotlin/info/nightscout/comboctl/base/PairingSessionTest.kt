@@ -3,6 +3,7 @@ package info.nightscout.comboctl.base
 import info.nightscout.comboctl.base.testUtils.TestBluetoothDevice
 import info.nightscout.comboctl.base.testUtils.TestPumpStateStore
 import info.nightscout.comboctl.base.testUtils.runBlockingWithWatchdog
+import info.nightscout.comboctl.base.testUtils.testSequencedDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlin.test.Test
@@ -446,7 +447,7 @@ class PairingSessionTest {
         val testIO = PairingTestComboIO(expectedTestSequence)
         val testPumpStateStore = TestPumpStateStore()
         val testBluetoothDevice = TestBluetoothDevice(testIO)
-        val pumpIO = PumpIO(testPumpStateStore, testBluetoothDevice, onNewDisplayFrame = {}, onPacketReceiverException = {})
+        val pumpIO = PumpIO(testPumpStateStore, testBluetoothDevice, testSequencedDispatcher, onNewDisplayFrame = {}, onPacketReceiverException = {})
 
         runBlockingWithWatchdog(12000) {
             pumpIO.performPairing(

@@ -1,9 +1,9 @@
 package info.nightscout.comboctl.base
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -82,6 +83,15 @@ typealias PairingPINCallback = suspend (previousAttemptFailed: Boolean) -> Pairi
  * To handle IO at the transport layer, this uses [TransportLayer.IO]
  * internally.
  *
+ * The [sequencedDispatcher] is the dispatcher that is used for spawning
+ * the internal coroutines that send and receive packets.
+ *
+ * IMPORTANT: It is essential that that dispatcher is really a "sequenced"
+ * one. This means that it never executes more than one task at the same
+ * time. Consider using the JVM single thread executor, or the
+ * [CoroutineDispatcher.limitedParallelism] dispatcher view with its
+ * parallelism count set to 1.
+ *
  * In regular connections, the Combo needs "heartbeats" to periodically
  * let it know that the client still exists. If too much time passes since
  * the last heartbeat, the Combo terminates the connection. Each mode has a
@@ -111,6 +121,7 @@ typealias PairingPINCallback = suspend (previousAttemptFailed: Boolean) -> Pairi
  * @param bluetoothDevice [BluetoothDevice] object to use for
  *   Bluetooth I/O. Must be in a disconnected state when
  *   assigned to this instance.
+ * @param sequencedDispatcher Sequenced dispatcher to use for internal IO.
  * @param onNewDisplayFrame Callback to invoke whenever a new RT
  *   [DisplayFrame] was received.
  * @param onPacketReceiverException Callback to invoked whenever an
@@ -120,6 +131,7 @@ typealias PairingPINCallback = suspend (previousAttemptFailed: Boolean) -> Pairi
 class PumpIO(
     private val pumpStateStore: PumpStateStore,
     private val bluetoothDevice: BluetoothDevice,
+    private val sequencedDispatcher: CoroutineDispatcher,
     private val onNewDisplayFrame: (displayFrame: DisplayFrame?) -> Unit,
     private val onPacketReceiverException: (e: TransportLayer.PacketReceiverException) -> Unit
 ) {
@@ -354,7 +366,7 @@ class PumpIO(
 
                 _connectionState.value = ConnectionState.CONNECTED
 
-                transportLayerIO.start(packetReceiverScope = this) { tpLayerPacket -> processReceivedPacket(tpLayerPacket) }
+                transportLayerIO.start(packetReceiverScope = this + sequencedDispatcher) { tpLayerPacket -> processReceivedPacket(tpLayerPacket) }
 
                 progressReporter?.setCurrentProgressStage(BasicProgressStage.PerformingConnectionHandshake)
 
@@ -647,11 +659,9 @@ class PumpIO(
         rtButtonConfirmationBarrier = newRtButtonConfirmationBarrier()
 
         // Start the internal coroutine scope that will run the heartbeat,
-        // packet receiver, and other internal coroutines. Enforce the
-        // default dispatcher to rule out that something like the UI
-        // scope could be picked automatically on some platforms.
+        // packet receiver, and other internal coroutines.
         val newScopeJob = SupervisorJob()
-        val newScope = CoroutineScope(newScopeJob + Dispatchers.Default)
+        val newScope = CoroutineScope(newScopeJob + sequencedDispatcher)
 
         this.initialMode = initialMode
         this.internalScopeJob = newScopeJob
@@ -1450,7 +1460,7 @@ class PumpIO(
         expectedResponseCommand: TransportLayer.Command? = null
     ): TransportLayer.Packet = sendPacketMutex.withLock {
         return withContext(NonCancellable) {
-            transportLayerIO.send(tpLayerPacketInfo)
+            transportLayerIO.send(tpLayerPacketInfo, sequencedDispatcher)
             transportLayerIO.receive(expectedResponseCommand)
         }
     }
@@ -1487,7 +1497,7 @@ class PumpIO(
         tpLayerPacketInfo: TransportLayer.OutgoingPacketInfo
     ) = sendPacketMutex.withLock {
         withContext(NonCancellable) {
-            transportLayerIO.send(tpLayerPacketInfo)
+            transportLayerIO.send(tpLayerPacketInfo, sequencedDispatcher)
         }
     }
 
@@ -1545,7 +1555,7 @@ class PumpIO(
                 currentRTSequence = 0
         }
 
-        transportLayerIO.send(outgoingPacketInfo)
+        transportLayerIO.send(outgoingPacketInfo, sequencedDispatcher)
     }
 
     private fun processReceivedPacket(tpLayerPacket: TransportLayer.Packet) =

@@ -13,10 +13,12 @@ import info.nightscout.comboctl.base.PumpIO
 import info.nightscout.comboctl.base.PumpStateStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 private val logger = Logger.get("PumpManager")
 
@@ -33,10 +35,22 @@ private val logger = Logger.get("PumpManager")
  *
  * Before an instance of this class can actually be used, [setup]
  * must be called.
+ *
+ * The [sequencedDispatcher] is the dispatcher that is passed to the
+ * new [Pump] instances as their sequenced dispatcher. It is also used
+ * in the [pairWithNewPump], [acquirePump], and [releasePump] public
+ * API calls of this class to ensure thread safety.
+ *
+ * IMPORTANT: It is essential that that dispatcher is really a "sequenced"
+ * one. This means that it never executes more than one task at the same
+ * time. Consider using the JVM single thread executor, or the
+ * [CoroutineDispatcher.limitedParallelism] dispatcher view with its
+ * parallelism count set to 1.
  */
 class PumpManager(
     private val bluetoothInterface: BluetoothInterface,
-    private val pumpStateStore: PumpStateStore
+    private val pumpStateStore: PumpStateStore,
+    private val sequencedDispatcher: CoroutineDispatcher
 ) {
     // Coroutine mutex. This is used to prevent race conditions while
     // accessing acquiredPumps and the pumpStateStore. The mutex is needed
@@ -241,7 +255,7 @@ class PumpManager(
     suspend fun pairWithNewPump(
         discoveryDuration: Int,
         onPairingPIN: suspend (newPumpAddress: BluetoothAddress, previousAttemptFailed: Boolean) -> PairingPIN
-    ): PairingResult {
+    ): PairingResult = withContext(sequencedDispatcher) {
         val deferred = CompletableDeferred<PairingResult>()
 
         lateinit var result: PairingResult
@@ -349,7 +363,7 @@ class PumpManager(
             else -> Unit
         }
 
-        return result
+        return@withContext result
     }
 
     /**
@@ -403,7 +417,7 @@ class PumpManager(
         pumpAddress: BluetoothAddress,
         initialBasalProfile: BasalProfile? = null,
         onEvent: (event: Pump.Event) -> Unit = { }
-    ) =
+    ) = withContext(sequencedDispatcher) {
         pumpStateAccessMutex.withLock {
             if (acquiredPumps.contains(pumpAddress))
                 throw PumpAlreadyAcquiredException(pumpAddress)
@@ -415,12 +429,13 @@ class PumpManager(
 
             val bluetoothDevice = bluetoothInterface.getDevice(pumpAddress)
 
-            val pump = Pump(bluetoothDevice, pumpStateStore, initialBasalProfile, onEvent)
+            val pump = Pump(bluetoothDevice, pumpStateStore, sequencedDispatcher, initialBasalProfile, onEvent)
 
             acquiredPumps[pumpAddress] = pump
 
             pump // Return the Pump instance
         }
+    }
 
     /**
      * Releases (= un-acquires) a previously acquired pump with the given address.
@@ -429,7 +444,7 @@ class PumpManager(
      *
      * @param acquiredPumpAddress Bluetooth address of the pump to release.
      */
-    suspend fun releasePump(acquiredPumpAddress: BluetoothAddress) {
+    suspend fun releasePump(acquiredPumpAddress: BluetoothAddress) = withContext(sequencedDispatcher) {
         pumpStateAccessMutex.withLock {
             if (!acquiredPumps.contains(acquiredPumpAddress)) {
                 logger(LogLevel.DEBUG) { "A pump with address $acquiredPumpAddress wasn't previously acquired; ignoring call" }
@@ -460,7 +475,7 @@ class PumpManager(
         val bluetoothDevice = bluetoothInterface.getDevice(pumpAddress)
         logger(LogLevel.DEBUG) { "Got Bluetooth device instance for pump" }
 
-        val pumpIO = PumpIO(pumpStateStore, bluetoothDevice, onNewDisplayFrame = {}, onPacketReceiverException = {})
+        val pumpIO = PumpIO(pumpStateStore, bluetoothDevice, sequencedDispatcher, onNewDisplayFrame = {}, onPacketReceiverException = {})
 
         if (pumpIO.isPaired()) {
             logger(LogLevel.INFO) { "Not pairing discovered pump $pumpAddress since it is already paired" }

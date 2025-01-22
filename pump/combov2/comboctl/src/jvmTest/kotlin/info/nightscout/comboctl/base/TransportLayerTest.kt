@@ -5,6 +5,7 @@ import info.nightscout.comboctl.base.testUtils.TestPumpStateStore
 import info.nightscout.comboctl.base.testUtils.WatchdogTimeoutException
 import info.nightscout.comboctl.base.testUtils.coroutineScopeWithWatchdog
 import info.nightscout.comboctl.base.testUtils.runBlockingWithWatchdog
+import info.nightscout.comboctl.base.testUtils.testSequencedDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.datetime.UtcOffset
 import kotlin.test.Test
@@ -174,7 +175,7 @@ class TransportLayerTest {
 
             // Send a REQUEST_PAIRING_CONNECTION and simulate Combo reaction
             // to it by feeding the simulated Combo response into the IO object.
-            tpLayerIO.send(TransportLayer.createRequestPairingConnectionPacketInfo())
+            tpLayerIO.send(TransportLayer.createRequestPairingConnectionPacketInfo(), testSequencedDispatcher)
             testComboIO.feedIncomingData(pairingConnectionRequestAcceptedPacket.toByteList())
             // Receive the simulated response.
             val receivedPacket = tpLayerIO.receive()
@@ -284,7 +285,7 @@ class TransportLayerTest {
                 // use createRequestPairingConnectionPacketInfo() to
                 // be able to use send(). Might as well use any
                 // other create*PacketInfo function.
-                tpLayerIO.send(TransportLayer.createRequestPairingConnectionPacketInfo())
+                tpLayerIO.send(TransportLayer.createRequestPairingConnectionPacketInfo(), testSequencedDispatcher)
             }
             println(
                 "Exception thrown by send() call (this exception was expected by the test): $exceptionThrownBySendCall"
