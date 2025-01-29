@@ -1351,6 +1351,7 @@ class PumpIO(
                                 ApplicationLayer.Command.CTRL_DEACTIVATE_SERVICE_RESPONSE
                             )
                         }
+                        logger(LogLevel.DEBUG) { "Received CTRL_DEACTIVATE_SERVICE_RESPONSE packet" }
                     }
 
                     logger(LogLevel.DEBUG) { "Activating new service" }
@@ -1384,6 +1385,7 @@ class PumpIO(
                             ApplicationLayer.Command.CTRL_ACTIVATE_SERVICE_RESPONSE
                         )
                     }
+                    logger(LogLevel.DEBUG) { "Received CTRL_ACTIVATE_SERVICE_RESPONSE packet" }
                 }
             }
 
