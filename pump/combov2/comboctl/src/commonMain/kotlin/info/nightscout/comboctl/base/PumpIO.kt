@@ -1366,19 +1366,6 @@ class PumpIO(
                     logger(LogLevel.DEBUG) { "Sent CTRL_ACTIVATE packet; waiting for CTRL_ACTIVATE_SERVICE_RESPONSE packet" }
                     var receivedAppLayerPacket = transportLayerIO.receive(TransportLayer.Command.DATA).toAppLayerPacket()
 
-                    // XXX: In a few cases, we get this response instead. This seems to be a Combo bug -
-                    // an extra CTRL_DEACTIVATE_SERVICE_RESPONSE packet is inserted before the actual
-                    // response. The workaround appears to be to read and drop that extra response packet
-                    // and then proceed as usual (since correct response packets follow that one).
-                    if (receivedAppLayerPacket.command == ApplicationLayer.Command.CTRL_DEACTIVATE_SERVICE_RESPONSE) {
-                        logger(LogLevel.INFO) {
-                            "Got CTRL_DEACTIVATE_SERVICE_RESPONSE packet even though CTRL_ACTIVATE_SERVICE_RESPONSE was expected; " +
-                            "suspected to be a Combo bug; trying to receive packet again as a workaround"
-                        }
-                        // Retry receiving.
-                        receivedAppLayerPacket = transportLayerIO.receive(TransportLayer.Command.DATA).toAppLayerPacket()
-                    }
-
                     if (receivedAppLayerPacket.command != ApplicationLayer.Command.CTRL_ACTIVATE_SERVICE_RESPONSE) {
                         throw ApplicationLayer.IncorrectPacketException(
                             receivedAppLayerPacket,
