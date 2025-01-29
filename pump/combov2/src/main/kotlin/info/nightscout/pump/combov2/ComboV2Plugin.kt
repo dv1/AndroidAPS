@@ -57,7 +57,6 @@ import info.nightscout.comboctl.base.ComboException
 import info.nightscout.comboctl.base.DisplayFrame
 import info.nightscout.comboctl.base.NullDisplayFrame
 import info.nightscout.comboctl.base.PairingPIN
-import info.nightscout.comboctl.base.defaultSequencedDispatcher
 import info.nightscout.comboctl.main.BasalProfile
 import info.nightscout.comboctl.main.QuantityNotChangingException
 import info.nightscout.comboctl.main.RTCommandProgressStage
@@ -72,6 +71,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.BufferOverflow
@@ -92,6 +92,7 @@ import kotlinx.datetime.toLocalDateTime
 import org.joda.time.DateTime
 import org.json.JSONException
 import org.json.JSONObject
+import java.util.concurrent.Executors
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.max
@@ -135,7 +136,22 @@ class ComboV2Plugin @Inject constructor(
         aapsLogger, rh, commandQueue
     ), Pump, PluginConstraints {
 
-    private val sequencedDispatcher = defaultSequencedDispatcher
+    // TODO: Test the driver with the dispatcher that has a dedicated
+    // thread instead of defaultSequencedDispatcher, which reuses the
+    // default dispatcher thread pool. It helps with logging, since
+    // by using the thread name, it becomes easily possible to check
+    // if the driver activities all happen in sequence, that is,
+    // not parallelized.
+    //private val sequencedDispatcher = defaultSequencedDispatcher
+    private val sequencedDispatcher = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable).apply {
+            name = "CCtlSeqDispatcher"
+            // This thread is disposed of when the dispatcher is
+            // garbage collected, so there is no need to run it as
+            // a daemon thread.
+            isDaemon = false
+        }
+    }.asCoroutineDispatcher()
 
     // Utility class to keep an internal scope and its
     // SupervisorJob grouped. It also makes replacing the
