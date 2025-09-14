@@ -1,0 +1,75 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="2dp"
+    tools:context="app.aaps.plugins.sync.asteroidOS.AsteroidOSFragment">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/asteroidos_send_data_button"
+        style="@style/GrayButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:drawableTop="@drawable/ic_actions_refill"
+        android:paddingStart="0dp"
+        android:paddingEnd="0dp"
+        android:text="@string/asteroidos_send_data_now"
+        android:textColor="?attr/treatmentButton" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.5"
+            android:gravity="end"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:text="@string/asteroidos_time_series_timespan"
+            android:textSize="14sp" />
+
+        <app.aaps.core.ui.elements.NumberPicker
+            android:id="@+id/asteroidos_time_series_timespan"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="start"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.5"
+            android:gravity="end"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:text="@string/asteroidos_time_series_visualization"
+            android:textSize="14sp" />
+
+        <Spinner
+            android:id="@+id/asteroidos_time_series_visualization"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:gravity="start"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:entries="@array/asteroidos_time_series_visualization_items"
+            />
+    </LinearLayout>
+</LinearLayout>

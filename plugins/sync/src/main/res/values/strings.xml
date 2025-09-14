@@ -209,4 +209,19 @@
     <string name="garmin_request_key">Request Key</string>
     <string name="garmin_request_key_summary">Optional key to secure HTTP communication between Garmin device and AAPS.</string>
 
+    <!--    AsteroidOS-->
+    <string name="asteroidos_name" translatable="false">AsteroidOS</string>
+    <string name="asteroidos_shortname" translatable="false">ASTEROIDOS</string>
+    <string name="description_asteroidos">Monitor AAPS using your AsteroidOS watch. Requires having the AsteroidOS sync app installed.</string>
+    <string name="asteroidos_send_data_now">Send current BG data now</string>
+    <string name="asteroidos_time_series_timespan">Time series timespan on watchface (hours)</string>
+    <string name="asteroidos_time_series_visualization">Time series visualization</string>
+    <string-array name="asteroidos_time_series_visualization_items">
+        <item>Dots</item>
+        <item>Lines</item>
+    </string-array>
+    <string-array name="asteroidos_time_series_visualization_item_ids">
+        <item>id_dots</item>
+        <item>id_lines</item>
+    </string-array>
 </resources>
