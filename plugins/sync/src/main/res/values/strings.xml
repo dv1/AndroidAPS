@@ -216,6 +216,7 @@
     <string name="asteroidos_send_data_now">Send current BG data now</string>
     <string name="asteroidos_time_series_timespan">Time series timespan on watchface (hours)</string>
     <string name="asteroidos_time_series_visualization">Time series visualization</string>
+    <string name="asteroidos_include_recalculated_bg">Include recalculated BG values</string>
     <string-array name="asteroidos_time_series_visualization_items">
         <item>Dots</item>
         <item>Lines</item>

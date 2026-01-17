@@ -79,6 +79,10 @@ private val DEFAULT_TIME_SERIES_VISUALIZATION_TYPE = TimeSeriesVisualizationType
 private const val ASTEROIDOS_TIME_SERIES_VISUALIZATION_TYPE_KEY =
     "asteroidos-time-series-visualization-key"
 
+private const val DEFAULT_ASTEROIDOS_INCLUDE_RECALCULATED_BG = true
+private const val ASTEROIDOS_INCLUDE_RECALCULATED_BG_KEY =
+    "asteroidos-include-recalculated-bg-key"
+
 // Constants and enums for the BG data binary format.
 
 internal const val UNKNOWN_INTEGER_QUANTITY = 0xFFFF
@@ -246,6 +250,16 @@ class AsteroidOSPlugin @Inject constructor(
         }
         get() = _timeSeriesVisualizationType
 
+    private var _includeRecalculatedBG = DEFAULT_ASTEROIDOS_INCLUDE_RECALCULATED_BG
+    var includeRecalculatedBG: Boolean
+        set(value) {
+            _includeRecalculatedBG = value
+            sp.edit(commit = false) {
+                putBoolean(ASTEROIDOS_INCLUDE_RECALCULATED_BG_KEY, value)
+            }
+        }
+        get() = _includeRecalculatedBG
+
     override fun onStart() {
         // Note that no BG data is sent inside this function.
         // That's because required components like the IOB
@@ -273,6 +287,10 @@ class AsteroidOSPlugin @Inject constructor(
                 TimeSeriesVisualizationType.validIntRange.last,
                 "timeSeriesVisualizationType"
             )
+        )
+        _includeRecalculatedBG = sp.getBoolean(
+            ASTEROIDOS_INCLUDE_RECALCULATED_BG_KEY,
+            DEFAULT_ASTEROIDOS_INCLUDE_RECALCULATED_BG
         )
 
         // Wipe any previous state on the watchface that might still
@@ -685,8 +703,9 @@ class AsteroidOSPlugin @Inject constructor(
                     assert(timeSeriesTimespan > 0)
                     val timeSeriesTimespanInMs = timeSeriesTimespan.toLong() * 3600 * 1000
                     val timeSeriesStartTimestamp = currentTime - timeSeriesTimespanInMs
+                    val withFilledGaps = _includeRecalculatedBG
                     val originalTimeSeries = iobCobCalculator.ads.getBucketedDataTableCopy()?.filter {
-                        (it.timestamp > timeSeriesStartTimestamp) && !it.filledGap
+                        (it.timestamp > timeSeriesStartTimestamp) && (withFilledGaps || !it.filledGap)
                     }?.sortedBy { it.timestamp }?.let { it.subList(maxOf(0, it.size - 127), it.size) } ?: listOf()
 
                     aapsLogger.debug(LTag.WEAR, "Original num time series data points: ${originalTimeSeries.size}")

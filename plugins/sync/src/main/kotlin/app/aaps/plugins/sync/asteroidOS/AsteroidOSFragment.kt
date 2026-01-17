@@ -76,6 +76,11 @@ class AsteroidOSFragment : DaggerFragment() {
             }
         }
 
+        binding.asteroidosIncludeRecalculatedBg.isChecked = asteroidOSPlugin.includeRecalculatedBG
+        binding.asteroidosIncludeRecalculatedBg.setOnCheckedChangeListener { _, isChecked ->
+            asteroidOSPlugin.includeRecalculatedBG = isChecked
+        }
+
         binding.asteroidosSendDataButton.setOnClickListener {
             asteroidOSPlugin.sendFullBGData()
         }
